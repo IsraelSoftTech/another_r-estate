@@ -1,0 +1,225 @@
+/* AdminProp - professional form styles */
+
+.property-form {
+    margin-top: 1.25rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    max-width: 720px;
+}
+
+.property-form .form-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0.75rem 1rem;
+    align-items: center;
+    margin-bottom: 0.9rem;
+}
+
+.property-form .form-row label {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.property-form input,
+.property-form select,
+.property-form textarea {
+    width: 100%;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.property-form input:focus,
+.property-form select:focus,
+.property-form textarea:focus {
+    outline: none;
+    border-color: #1a4ba1;
+    box-shadow: 0 0 0 3px rgba(26, 75, 161, 0.12);
+}
+
+.property-form textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.action-button {
+    border: none;
+    border-radius: 8px;
+    padding: 0.7rem 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.primary-button {
+    background: linear-gradient(135deg, #1a4ba1 0%, #163c81 100%);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(26, 75, 161, 0.25);
+}
+
+.primary-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(26, 75, 161, 0.32);
+}
+
+.secondary-button {
+    background: #f3f4f6;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+}
+
+.secondary-button:hover {
+    background: #e5e7eb;
+}
+
+/* Placeholder text style (if used elsewhere) */
+.placeholder-text {
+    padding: 2rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    color: #6b7280;
+    text-align: center;
+}
+
+/* Table styles */
+.properties-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.properties-table th,
+.properties-table td {
+    padding: 16px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.properties-table th {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.properties-table tr:hover {
+    background-color: #f8fafc;
+}
+
+.properties-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Verification status styles */
+.verification-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.verification-status.verified {
+    color: #059669;
+    background-color: #ecfdf5;
+}
+
+.verification-status.not-verified {
+    color: #dc2626;
+    background-color: #fef2f2;
+}
+
+/* Table action buttons */
+.table-action-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    margin-right: 6px;
+}
+
+.table-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.table-action-btn.verify-btn {
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.table-action-btn.verify-btn:hover {
+    background: #e0f2fe;
+}
+
+.table-action-btn.edit-btn {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.table-action-btn.edit-btn:hover {
+    background: #dcfce7;
+}
+
+.table-action-btn.delete-btn {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.table-action-btn.delete-btn:hover {
+    background: #fee2e2;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .property-form {
+        padding: 1rem;
+    }
+    .property-form .form-row {
+        grid-template-columns: 1fr;
+    }
+    .property-form .form-row label {
+        margin-bottom: -0.25rem;
+    }
+    .form-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+    
+    .properties-table {
+        font-size: 0.875rem;
+    }
+    
+    .properties-table th,
+    .properties-table td {
+        padding: 12px 8px;
+    }
+} 
+
