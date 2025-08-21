@@ -25,6 +25,7 @@ import './Landing.css';
 import logo from '../assets/logo.jpg';
 import { db } from '../firebase';
 import { ref, onValue, query, orderByChild, equalTo, limitToLast } from 'firebase/database';
+import { toast } from 'react-toastify';
 
 const features = [
   { icon: <FaCheckCircle />, title: 'Verified Listings', desc: 'Every property is thoroughly verified and authenticated' },
@@ -69,14 +70,14 @@ function Landing() {
     } catch {}
 
     // Realtime limited query: all properties, latest 50
-    const q = query(ref(db, 'properties'), limitToLast(50));
+    const q = query(ref(db, 'properties'), orderByChild('updatedAt'), limitToLast(50));
     const unsubscribe = onValue(q, (snap) => {
       if (!isMounted) return;
       const data = snap.val() || {};
       const list = Object.entries(data)
         .map(([id, p]) => ({ id, ...p }))
         // Removed status filter so that all properties show, even if status is missing
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
       setProperties(list);
       setFilteredProperties(list);
       setLoading(false);
@@ -105,16 +106,6 @@ function Landing() {
     setFilteredProperties(filtered);
   }, [searchQuery, properties]);
 
-  const openPropertyModal = (property) => {
-    setSelectedProperty(property);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedProperty(null);
-  };
-
   const formatPrice = (price) => {
     if (!price) return 'Price on request';
     return `XAF ${Number(price).toLocaleString()}`;
@@ -128,6 +119,16 @@ function Landing() {
       case 'lease': return 'For Lease';
       default: return 'For Sale';
     }
+  };
+
+  const openPropertyModal = (property) => {
+    setSelectedProperty(property);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedProperty(null);
   };
 
   return (
@@ -462,12 +463,12 @@ function Landing() {
               {selectedProperty && (
                 <div className="modal-content">
                   <div className="modal-image-container">
-                    <img 
-                      src={selectedProperty.mainImage || 'https://via.placeholder.com/400x400?text=Property+Image'} 
-                      alt={selectedProperty.name} 
-                      loading="lazy"
-                      decoding="async"
-                    />
+                      <img 
+                        src={selectedProperty.mainImage || 'https://via.placeholder.com/400x400?text=Property+Image'} 
+                        alt={selectedProperty.name} 
+                        loading="lazy"
+                        decoding="async"
+                      />
                     <div className="modal-overlay-info">
                       <div className="modal-status">{getListingTypeText(selectedProperty.type)}</div>
                       {selectedProperty.isVerified && (

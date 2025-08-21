@@ -1,0 +1,83 @@
+.users-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.users-count {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.users-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+}
+
+.users-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  min-width: 220px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.users-table thead th {
+  text-align: left;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 700;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.users-table tbody td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.users-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.empty-state {
+  text-align: center;
+  color: #64748b;
+  padding: 1rem;
+}
+
+@media (max-width: 700px) {
+  .users-search input { min-width: 120px; }
+  .users-table thead { display: none; }
+  .users-table, .users-table tbody, .users-table tr, .users-table td { display: block; width: 100%; }
+  .users-table tr { border-bottom: 1px solid #e2e8f0; }
+  .users-table tbody td { display: flex; justify-content: space-between; align-items: center; }
+  .users-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #64748b;
+    margin-right: 1rem;
+  }
+} 

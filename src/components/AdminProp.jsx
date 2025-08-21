@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './AdminProp.css';
-import { FaHome, FaUsers, FaBuilding, FaMoneyBillWave, FaLandmark, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import './AdminDash.css';
+import { FaHome, FaUsers, FaBuilding, FaMoneyBillWave, FaLandmark, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaBars } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
 import { db } from '../firebase';
 import { ref, set, onValue, remove, update } from 'firebase/database';
 import { toast } from 'react-toastify';
+
+// Helper to race a promise with a timeout
+const withTimeout = (promise, ms, message = 'Operation timed out') => {
+	let t;
+	const timeout = new Promise((_, rej) => { t = setTimeout(() => rej(new Error(message)), ms); });
+	return Promise.race([promise.finally(() => clearTimeout(t)), timeout]);
+};
 
 export default function AdminProp() {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +37,11 @@ export default function AdminProp() {
         sizeUnit: 'sqm',
         mainImage: '' // URL or will be set to data URL
     });
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    const CAMEROON_CITIES = [
+        'Bamenda','Bafoussam','Bertoua','Buea','Douala','Ebolowa','Edea','Foumban','Garoua','Kousseri','Kribi','Kumba','Limbe','Maroua','Ngaoundere','Nkongsamba','Sangmelima','Yaounde','Tiko','Mamfe','Banyo','Batouri','Koutaba','Mbalmayo','Obala','Meiganga','Yagoua','Wum'
+    ];
 
     useEffect(() => {
         const propertiesRef = ref(db, 'properties');
@@ -89,10 +102,7 @@ export default function AdminProp() {
             let mainImageFinal = form.mainImage?.trim() || '';
             if (!mainImageFinal && imageFile) {
                 try {
-                    mainImageFinal = await Promise.race([
-                        fileToDataUrl(imageFile),
-                        new Promise((_, rej) => setTimeout(() => rej(new Error('Image read timeout')), 10000))
-                    ]);
+                    mainImageFinal = await withTimeout(fileToDataUrl(imageFile), 15000, 'Image read timed out');
                 } catch (_) {
                     // fallback stays empty
                 }
@@ -115,8 +125,8 @@ export default function AdminProp() {
                 isVerified: false,
                 status: 'listed',
                 createdAt: editId ? undefined : timestamp,
-        updatedAt: timestamp,
-        lastModifiedAt: timestamp,
+                updatedAt: timestamp,
+                lastModifiedAt: timestamp,
                 lastModifiedBy: 'admin'
             };
 
@@ -124,25 +134,18 @@ export default function AdminProp() {
                 ? update(ref(db, `properties/${id}`), (({ createdAt, ...rest }) => rest)(payload))
                 : set(ref(db, `properties/${id}`), payload);
 
-            await Promise.race([
-                writePromise,
-                new Promise(res => setTimeout(res, 900))
-            ]);
+            await withTimeout(writePromise, 15000, 'Saving to database timed out');
 
+            toast.success(editId ? 'Property updated successfully' : 'Property created successfully', { autoClose: 1500 });
+
+            // Reset form state
             setForm({ name: '', city: '', price: '', propertyType: 'house', listingType: 'sale', description: '', bedrooms: '', bathrooms: '', area: '', sizeUnit: 'sqm', mainImage: '' });
             setImageFile(null);
             setEditId(null);
             setShowForm(false);
-
-            toast.success(editId ? 'Property updated successfully' : 'Property created successfully', { autoClose: 2000 });
-
-            writePromise.catch(err => {
-                console.error('Property save failed', err);
-                toast.error(`Failed to save property: ${err.message}`);
-            });
         } catch (err) {
-            toast.error(`Failed to create property: ${err.message}`);
-    } finally {
+            toast.error(err.message || 'Failed to create property');
+        } finally {
             setIsSubmitting(false);
         }
     };
@@ -196,7 +199,8 @@ export default function AdminProp() {
 
   return (
     <div className="admin-dashboard">
-            <aside className="sidebar">
+            {mobileMenuOpen && <div className="sidebar-backdrop" onClick={() => setMobileMenuOpen(false)} />}
+            <aside className={`sidebar ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="logo-section">
                     <img src={logo} alt="ITT Real Estate Logo" />
           <span>ITT Real Estate</span>
@@ -229,6 +233,9 @@ export default function AdminProp() {
         <div className="dashboard-header">
           <h1 className="dashboard-title">Properties</h1>
           <div className="header-actions">
+            <button className="menu-toggle" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Toggle menu">
+            <FaBars />
+            </button>
             <div className="desktop-profile">
               <ProfileCircle />
             </div>
@@ -251,7 +258,12 @@ export default function AdminProp() {
                             </div>
                             <div className="form-row">
                                 <label>City*</label>
-                                <input name="city" value={form.city} onChange={handleChange} />
+                                <input list="cm-cities" name="city" value={form.city} onChange={handleChange} placeholder="Select or type a city" />
+                                <datalist id="cm-cities">
+                                    {CAMEROON_CITIES.map(c => (
+                                        <option key={c} value={c} />
+                                    ))}
+                                </datalist>
                             </div>
                             <div className="form-row">
                                 <label>Price (XAF)*</label>
@@ -346,19 +358,19 @@ export default function AdminProp() {
                                     <tbody>
                                         {properties.map((p) => (
                                             <tr key={p.id} style={{ borderTop: '1px solid #eee' }}>
-                                                <td>{p.name}</td>
-                                                <td>{p.city || p.location}</td>
-                                                <td>{Number(p.price || 0).toLocaleString('en-US')} XAF</td>
-                                                <td>{p.propertyType}</td>
-                                                <td>{p.listingType || p.type}</td>
-                                                <td>{p.status}</td>
-                                                <td>
+                                                <td data-label="Name">{p.name}</td>
+                                                <td data-label="City">{p.city || p.location}</td>
+                                                <td data-label="Price">{Number(p.price || 0).toLocaleString('en-US')} XAF</td>
+                                                <td data-label="Type">{p.propertyType}</td>
+                                                <td data-label="Listing">{p.listingType || p.type}</td>
+                                                <td data-label="Status">{p.status}</td>
+                                                <td data-label="Verified">
                                                     <span className={`verification-status ${p.isVerified ? 'verified' : 'not-verified'}`}>
                                                         {p.isVerified ? <FaCheckCircle /> : <FaTimesCircle />}
                                                         {p.isVerified ? 'Verified' : 'Not Verified'}
                                                     </span>
                                                 </td>
-                                                <td>
+                                                <td data-label="Actions">
                                                     <button 
                                                         className="table-action-btn verify-btn" 
                                                         title={p.isVerified ? "Unverify" : "Verify"} 
