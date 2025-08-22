@@ -183,9 +183,17 @@
   color: #dc2626;
 }
 
+/* Dashboard Grid for two-column layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
 /* Recent Activity */
 .recent-activity {
-  margin-top: 2rem;
+  margin-top: 0;
 }
 
 .recent-activity h2 {
@@ -335,5 +343,10 @@
   
   .stat-number {
     font-size: 1.5rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 } 

@@ -35,9 +35,11 @@ export default function AdminProp() {
         bathrooms: '',
         area: '',
         sizeUnit: 'sqm',
-        mainImage: '' // URL or will be set to data URL
+        mainImage: '', // URL or will be set to data URL
+        landTitle: ''
     });
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [landTitleFile, setLandTitleFile] = useState(null);
 
     const CAMEROON_CITIES = [
         'Bamenda','Bafoussam','Bertoua','Buea','Douala','Ebolowa','Edea','Foumban','Garoua','Kousseri','Kribi','Kumba','Limbe','Maroua','Ngaoundere','Nkongsamba','Sangmelima','Yaounde','Tiko','Mamfe','Banyo','Batouri','Koutaba','Mbalmayo','Obala','Meiganga','Yagoua','Wum'
@@ -80,6 +82,16 @@ export default function AdminProp() {
         setImageFile(file || null);
     };
 
+    const handleLandTitleFileChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file && !file.type?.startsWith('image/')) {
+            toast.error('Please select an image file for Land Title');
+            setLandTitleFile(null);
+            return;
+        }
+        setLandTitleFile(file || null);
+    };
+
     const fileToDataUrl = (file) => new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
@@ -108,6 +120,15 @@ export default function AdminProp() {
                 }
             }
 
+            let landTitleFinal = form.landTitle?.trim() || '';
+            if (landTitleFile) {
+                try {
+                    landTitleFinal = await withTimeout(fileToDataUrl(landTitleFile), 15000, 'Land title image read timed out');
+                } catch (_) {
+                    // fallback stays as is
+                }
+            }
+
             const payload = {
                 name: form.name.trim(),
                 city: form.city.trim(),
@@ -122,6 +143,7 @@ export default function AdminProp() {
                 area: Number(form.area)||0,
                 sizeUnit: form.sizeUnit,
                 mainImage: mainImageFinal || null,
+                landTitle: landTitleFinal || null,
                 isVerified: false,
                 status: 'listed',
                 createdAt: editId ? undefined : timestamp,
@@ -139,8 +161,9 @@ export default function AdminProp() {
             toast.success(editId ? 'Property updated successfully' : 'Property created successfully', { autoClose: 1500 });
 
             // Reset form state
-            setForm({ name: '', city: '', price: '', propertyType: 'house', listingType: 'sale', description: '', bedrooms: '', bathrooms: '', area: '', sizeUnit: 'sqm', mainImage: '' });
+            setForm({ name: '', city: '', price: '', propertyType: 'house', listingType: 'sale', description: '', bedrooms: '', bathrooms: '', area: '', sizeUnit: 'sqm', mainImage: '', landTitle: '' });
             setImageFile(null);
+            setLandTitleFile(null);
             setEditId(null);
             setShowForm(false);
         } catch (err) {
@@ -163,16 +186,19 @@ export default function AdminProp() {
             bathrooms: prop.bathrooms || '',
             area: prop.area || '',
             sizeUnit: prop.sizeUnit || 'sqm',
-            mainImage: prop.mainImage || ''
+            mainImage: prop.mainImage || '',
+            landTitle: prop.landTitle || prop.landTitleImage || ''
         });
         setImageFile(null);
+        setLandTitleFile(null);
         setShowForm(true);
     };
 
     const cancelEdit = () => {
         setEditId(null);
-        setForm({ name: '', city: '', price: '', propertyType: 'house', listingType: 'sale', description: '', bedrooms: '', bathrooms: '', area: '', sizeUnit: 'sqm', mainImage: '' });
+        setForm({ name: '', city: '', price: '', propertyType: 'house', listingType: 'sale', description: '', bedrooms: '', bathrooms: '', area: '', sizeUnit: 'sqm', mainImage: '', landTitle: '' });
         setImageFile(null);
+        setLandTitleFile(null);
         setShowForm(false);
     };
 
@@ -315,13 +341,17 @@ export default function AdminProp() {
                                 <input type="file" accept="image/*" onChange={handleFileChange} />
                             </div>
                             <div className="form-row">
+                                <label>Land Title (image only)</label>
+                                <input type="file" accept="image/*" onChange={handleLandTitleFileChange} />
+                            </div>
+                            <div className="form-row">
                                 <label>Description</label>
                                 <textarea name="description" value={form.description} onChange={handleChange} rows={3} />
-          </div>
+                            </div>
                             <div className="form-actions">
                                 <button type="button" className="action-button secondary-button" onClick={cancelEdit} disabled={isSubmitting}>{editId ? 'Cancel Edit' : 'Cancel'}</button>
                                 <button type="submit" className="action-button primary-button" disabled={isSubmitting}>{isSubmitting ? (editId ? 'Saving...' : 'Creating...') : (editId ? 'Save Changes' : 'Create')}</button>
-            </div>
+                            </div>
                         </form>
                     )}
 

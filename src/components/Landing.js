@@ -24,8 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import './Landing.css';
 import logo from '../assets/logo.jpg';
 import { db } from '../firebase';
-import { ref, onValue, query, orderByChild, equalTo, limitToLast } from 'firebase/database';
-import { toast } from 'react-toastify';
+import { ref, onValue, query, orderByChild, limitToLast } from 'firebase/database';
 
 const features = [
   { icon: <FaCheckCircle />, title: 'Verified Listings', desc: 'Every property is thoroughly verified and authenticated' },
@@ -51,7 +50,6 @@ function Landing() {
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // Fast load: hydrate from localStorage cache immediately, then subscribe to RTDB
   useEffect(() => {
@@ -84,8 +82,7 @@ function Landing() {
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(list)); } catch {}
     }, (err) => {
       console.error('Landing: failed to subscribe properties', err);
-      if (isMounted && properties.length === 0) {
-        setError(err.message || 'Failed to load properties');
+      if (isMounted) {
         setLoading(false);
       }
     });
@@ -104,7 +101,7 @@ function Landing() {
       p.propertyType?.toLowerCase().includes(q)
     ));
     setFilteredProperties(filtered);
-  }, [searchQuery, properties]);
+  }, [searchQuery, properties.length, properties]);
 
   const formatPrice = (price) => {
     if (!price) return 'Price on request';

@@ -18,6 +18,7 @@ import LandProp from './components/LandProp';
 import LandInquire from './components/LandInquire';
 import TenantDash from './components/TenantDash';
 import TechDash from './components/TechDash';
+import LandTransac from './components/LandTransac';
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -58,6 +59,7 @@ function App() {
         {/* Landlord Routes */}
         <Route path="/landlord" element={<LordDash />} />
         <Route path="/landlord/properties" element={<LandProp />} />
+        <Route path="/landlord/transactions" element={<LandTransac />} />
         <Route path="/landlord/inquiries" element={<LandInquire />} />
         
         {/* Other Dashboard Routes */}
