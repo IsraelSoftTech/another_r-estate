@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './AdminProp.css';
 import './AdminDash.css';
-import { FaHome, FaBuilding, FaMoneyBillWave, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaBars, FaPlus } from 'react-icons/fa';
+import { FaHome, FaBuilding, FaMoneyBillWave, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaBars, FaPlus, FaShieldAlt, FaEye } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
 import { db, ensureAuthUser } from '../firebase';
-import { ref, set, onValue, remove, update } from 'firebase/database';
+import { ref, set, onValue, remove, update, push } from 'firebase/database';
 import { toast } from 'react-toastify';
+import PaymentModal from './PaymentModal';
 
 // Helper to race a promise with a timeout
 const withTimeout = (promise, ms, message = 'Operation timed out') => {
@@ -27,6 +28,10 @@ export default function LandProp() {
     const [landTitleFile, setLandTitleFile] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [selectedProperty, setSelectedProperty] = useState(null);
+    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+    const [isRequestingVerification, setIsRequestingVerification] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [form, setForm] = useState({
         name: '',
         city: '',
@@ -130,6 +135,18 @@ export default function LandProp() {
             toast.error('Authentication required');
             return;
         }
+        
+        // For new properties, show payment modal first
+        if (!editId) {
+            setShowPaymentModal(true);
+            return;
+        }
+        
+        // For editing existing properties, proceed directly
+        await saveProperty();
+    };
+
+    const saveProperty = async () => {
         try {
             setIsSubmitting(true);
             const timestamp = Date.now();
@@ -171,11 +188,19 @@ export default function LandProp() {
                 landlordId: currentUser.uid,
                 landlordName: currentUser.displayName || currentUser.email,
                 isVerified: false,
-                status: 'listed',
+                status: 'Unverified',
                 createdAt: editId ? undefined : timestamp,
                 updatedAt: timestamp,
                 lastModifiedAt: timestamp,
-                lastModifiedBy: 'landlord'
+                lastModifiedBy: 'landlord',
+                // Add platform fee information to the property record
+                platformFee: {
+                    amount: 1000, // XAF 1000
+                    status: 'pending', // Will be updated to 'completed' when admin approves
+                    paymentMethod: null, // Will be set when payment is processed
+                    paidAt: null, // Will be set when payment is completed
+                    transactionId: null // Will be set when payment is completed
+                }
             };
 
             const writePromise = editId
@@ -197,6 +222,43 @@ export default function LandProp() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handlePaymentSuccess = async () => {
+        // Update the property with payment information
+        try {
+            const propertyId = getPropertyDataForPayment().id;
+            const paymentUpdate = {
+                'platformFee.status': 'completed',
+                'platformFee.paymentMethod': 'Platform Fee Paid',
+                'platformFee.paidAt': Date.now(),
+                'platformFee.transactionId': `pay_${Date.now()}`,
+                updatedAt: Date.now(),
+                lastModifiedAt: Date.now(),
+                lastModifiedBy: 'landlord'
+            };
+
+            await update(ref(db, `properties/${propertyId}`), paymentUpdate);
+            toast.success('Platform fee payment recorded successfully!');
+        } catch (error) {
+            console.error('Failed to update property with payment info:', error);
+            toast.warn('Property created but payment info update failed');
+        }
+
+        await saveProperty();
+        setShowPaymentModal(false);
+    };
+
+    const getPropertyDataForPayment = () => {
+        const timestamp = Date.now();
+        const id = `prop_${timestamp}_${Math.random().toString(36).slice(2,8)}`;
+        return {
+            id,
+            name: form.name.trim(),
+            city: form.city.trim(),
+            landlordId: currentUser?.uid || '',
+            landlordName: currentUser?.displayName || currentUser?.email || ''
+        };
     };
 
     const startEdit = (prop) => {
@@ -241,6 +303,39 @@ export default function LandProp() {
     const formatPrice = (price) => {
         if (typeof price !== 'number') return '';
         try { return `XAF ${price.toLocaleString()}`; } catch (_) { return `XAF ${price}`; }
+    };
+
+    const openVerificationModal = (property) => {
+        setSelectedProperty(property);
+        setIsVerificationModalOpen(true);
+    };
+
+    const closeVerificationModal = () => {
+        setIsVerificationModalOpen(false);
+        setSelectedProperty(null);
+    };
+
+    const requestVerification = async () => {
+        if (!selectedProperty || isRequestingVerification) return;
+
+        setIsRequestingVerification(true);
+        try {
+            const timestamp = Date.now();
+            const updates = {
+                verificationRequested: true,
+                verificationRequestedAt: timestamp,
+                verificationStatus: 'pending'
+            };
+
+            await update(ref(db, `properties/${selectedProperty.id}`), updates);
+            
+            toast.success('Verification request sent successfully!');
+            closeVerificationModal();
+        } catch (err) {
+            toast.error(err.message || 'Failed to send verification request');
+        } finally {
+            setIsRequestingVerification(false);
+        }
     };
 
     return (
@@ -416,6 +511,41 @@ export default function LandProp() {
                                                     </span>
                                                 </td>
                                                 <td data-label="Actions">
+                                                    {!p.isVerified && !p.verificationRequested && !p.governmentRequested && (
+                                                        <button 
+                                                            className="table-action-btn verify-btn" 
+                                                            title="Request Verification" 
+                                                            onClick={() => openVerificationModal(p)}
+                                                            style={{ backgroundColor: '#059669', color: 'white' }}
+                                                        >
+                                                            <FaShieldAlt />
+                                                        </button>
+                                                    )}
+                                                    {p.verificationRequested && !p.isVerified && !p.governmentRequested && (
+                                                        <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>
+                                                            Pending Admin
+                                                        </span>
+                                                    )}
+                                                    {p.governmentRequested && !p.isVerified && (
+                                                        <span style={{ color: '#3b82f6', fontSize: '0.8rem' }}>
+                                                            With Government
+                                                        </span>
+                                                    )}
+                                                    {p.isVerified && (
+                                                        <span style={{ color: '#059669', fontSize: '0.8rem' }}>
+                                                            <FaCheckCircle /> Verified
+                                                        </span>
+                                                    )}
+                                                    {p.verificationStatus === 'rejected' && (
+                                                        <span style={{ color: '#dc2626', fontSize: '0.8rem' }}>
+                                                            <FaTimesCircle /> Rejected
+                                                        </span>
+                                                    )}
+                                                    {p.verificationStatus === 'withdrawn_from_government' && (
+                                                        <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>
+                                                            Withdrawn from Government
+                                                        </span>
+                                                    )}
                                                     <button className="table-action-btn edit-btn" title="Edit" onClick={() => startEdit(p)}><FaEdit /></button>
                                                     <button className="table-action-btn delete-btn" title="Delete" onClick={() => deleteProperty(p.id)}><FaTrash /></button>
                                                 </td>
@@ -428,6 +558,95 @@ export default function LandProp() {
                     </div>
                 </section>
             </main>
+            {/* Verification Request Modal */}
+            {isVerificationModalOpen && selectedProperty && (
+                <div className="modal-overlay" onClick={closeVerificationModal}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Request Property Verification</h2>
+                            <button className="modal-close" onClick={closeVerificationModal}>×</button>
+                        </div>
+                        
+                        <div className="modal-body">
+                            <div className="property-info">
+                                <h3>{selectedProperty.name}</h3>
+                                <p><strong>Location:</strong> {selectedProperty.city || selectedProperty.location}</p>
+                                <p><strong>Price:</strong> {formatPrice(selectedProperty.price)}</p>
+                                <p><strong>Type:</strong> {selectedProperty.propertyType}</p>
+                                <p><strong>Listing:</strong> {selectedProperty.listingType}</p>
+                                
+                                {selectedProperty.description && (
+                                    <div className="description-section">
+                                        <h4>Description:</h4>
+                                        <p>{selectedProperty.description}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedProperty.landTitle && (
+                                <div className="land-title-section">
+                                    <h4>Land Title Certificate:</h4>
+                                    <div className="land-title-image">
+                                        <img 
+                                            src={selectedProperty.landTitle} 
+                                            alt="Land Title Certificate"
+                                            style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd', borderRadius: '8px' }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedProperty.mainImage && (
+                                <div className="main-image-section">
+                                    <h4>Property Image:</h4>
+                                    <div className="property-image">
+                                        <img 
+                                            src={selectedProperty.mainImage} 
+                                            alt="Property"
+                                            style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd', borderRadius: '8px' }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="verification-notice">
+                                <h4>Verification Process:</h4>
+                                <ul>
+                                    <li>Your property will be reviewed by our admin team</li>
+                                    <li>Land title certificate will be verified</li>
+                                    <li>Property details will be cross-checked</li>
+                                    <li>You'll be notified once verification is complete</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button 
+                                className="action-button secondary-button" 
+                                onClick={closeVerificationModal}
+                                disabled={isRequestingVerification}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                className="action-button primary-button" 
+                                onClick={requestVerification}
+                                disabled={isRequestingVerification}
+                            >
+                                {isRequestingVerification ? 'Sending Request...' : <><FaShieldAlt /> Send Request</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showPaymentModal && (
+                <PaymentModal
+                    isOpen={showPaymentModal}
+                    onClose={() => setShowPaymentModal(false)}
+                    onSuccess={handlePaymentSuccess}
+                    propertyData={getPropertyDataForPayment()}
+                />
+            )}
         </div>
     );
 } 

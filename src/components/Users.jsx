@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './Users.css';
-import { FaHome, FaUsers, FaBuilding, FaMoneyBillWave, FaLandmark, FaSearch, FaEdit, FaTrash, FaBars } from 'react-icons/fa';
+import { FaHome, FaUsers, FaBuilding, FaMoneyBillWave, FaLandmark, FaSearch, FaEdit, FaTrash, FaBars, FaCheckCircle } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
@@ -90,6 +90,9 @@ const Users = () => {
             </Link>
             <Link to="/admin/properties" className="nav-item">
               <FaBuilding /> Properties
+            </Link>
+            <Link to="/admin/verification" className="nav-item">
+              <FaCheckCircle /> Verification
             </Link>
             <Link to="/admin/transactions" className="nav-item">
               <FaMoneyBillWave /> Transactions

@@ -20,24 +20,56 @@ export default function LandTransac() {
       .then((user) => {
         if (cancelled) return;
         
-        // Try to get transactions, but handle the case where the node doesn't exist
-        const transRef = ref(db, 'transactions');
-        off = onValue(transRef, (snap) => {
+        // Load platform fee transactions from properties node
+        const propsRef = ref(db, 'properties');
+        off = onValue(propsRef, (snap) => {
+          if (cancelled) return;
+          
           const raw = snap.val() || {};
           const list = Object.entries(raw)
-            .map(([id, t]) => ({ id, ...t }))
-            .filter(t => t.landlordId === user.uid) // Filter for this landlord
+            .filter(([id, item]) => 
+              // Only get properties with platform fee info that belong to this landlord
+              item.platformFee && 
+              item.landlordId === user.uid && 
+              !item.platformFee.isAdminCreated
+            )
+            .map(([id, p]) => {
+              // Convert property with platform fee to transaction format
+              const transaction = {
+                id: p.platformFee.transactionId || id,
+                propertyId: id,
+                propertyName: p.name,
+                propertyDetails: {
+                  type: p.propertyType,
+                  location: p.city || p.location,
+                  price: p.price,
+                  listingType: p.listingType,
+                  bedrooms: p.bedrooms,
+                  bathrooms: p.bathrooms,
+                  area: p.area,
+                  sizeUnit: p.sizeUnit
+                },
+                landlordId: p.landlordId,
+                landlordName: p.landlordName,
+                amount: p.platformFee.amount,
+                type: 'Platform Fee',
+                status: p.platformFee.status,
+                timestamp: p.platformFee.paidAt || p.createdAt,
+                createdAt: p.platformFee.paidAt || p.createdAt,
+                description: `Platform fee payment for property: ${p.name}`,
+                paymentMethod: p.platformFee.paymentMethod,
+                isAdminCreated: false
+              };
+              return transaction;
+            })
             .sort((a, b) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0));
+          
           setTransactions(list);
         }, (err) => {
-          // If permission denied, just set empty array (transactions node doesn't exist yet)
-          if (err.code === 'PERMISSION_DENIED') {
-            console.log('Transactions node not accessible yet, setting empty array');
-            setTransactions([]);
-          } else {
-            toast.error(err?.message || 'Failed to load transactions');
-            setTransactions([]);
-          }
+          if (cancelled) return;
+          console.error('Failed to load properties with platform fee info:', err);
+          toast.error('Failed to load transactions');
+          setTransactions([]);
         });
       })
       .catch((err) => toast.error(err?.message || 'Authentication required'));

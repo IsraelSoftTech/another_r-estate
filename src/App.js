@@ -12,6 +12,7 @@ import AdminDash from './components/AdminDash';
 import AdminProp from './components/AdminProp';
 import AdminTransac from './components/AdminTransac';
 import AdminGov from './components/AdminGov';
+import AdminVerification from './components/AdminVerification';
 import Users from './components/Users';
 import LordDash from './components/LordDash';
 import LandProp from './components/LandProp';
@@ -53,6 +54,7 @@ function App() {
         <Route path="/admin" element={<AdminDash />} />
         <Route path="/admin/users" element={<Users />} />
         <Route path="/admin/properties" element={<AdminProp />} />
+        <Route path="/admin/verification" element={<AdminVerification />} />
         <Route path="/admin/transactions" element={<AdminTransac />} />
         <Route path="/admin/government" element={<AdminGov />} />
         

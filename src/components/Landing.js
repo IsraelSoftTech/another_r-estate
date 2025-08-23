@@ -375,21 +375,21 @@ function Landing() {
                 <FaPhone className="contact-icon" />
                 <div>
                   <h4>Phone</h4>
-                  <p>+237 123 456 789</p>
+                  <p>+237 675 644 383</p>
                 </div>
               </div>
               <div className="contact-item">
                 <FaEnvelope className="contact-icon" />
                 <div>
                   <h4>Email</h4>
-                  <p>info@ittrealestate.com</p>
+                  <p>itt@gmail.com</p>
                 </div>
               </div>
               <div className="contact-item">
                 <FaMapMarkerAlt className="contact-icon" />
                 <div>
                   <h4>Address</h4>
-                  <p>Douala, Cameroon</p>
+                  <p>Bamenda, Cameroon</p>
                 </div>
               </div>
             </div>

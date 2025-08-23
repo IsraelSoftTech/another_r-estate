@@ -7,8 +7,9 @@ import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
 import { db } from '../firebase';
-import { ref, set, onValue, remove, update } from 'firebase/database';
+import { ref, set, onValue, remove, update, push } from 'firebase/database';
 import { toast } from 'react-toastify';
+import PaymentModal from './PaymentModal';
 
 // Helper to race a promise with a timeout
 const withTimeout = (promise, ms, message = 'Operation timed out') => {
@@ -40,6 +41,7 @@ export default function AdminProp() {
     });
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [landTitleFile, setLandTitleFile] = useState(null);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
     const CAMEROON_CITIES = [
         'Bamenda','Bafoussam','Bertoua','Buea','Douala','Ebolowa','Edea','Foumban','Garoua','Kousseri','Kribi','Kumba','Limbe','Maroua','Ngaoundere','Nkongsamba','Sangmelima','Yaounde','Tiko','Mamfe','Banyo','Batouri','Koutaba','Mbalmayo','Obala','Meiganga','Yagoua','Wum'
@@ -106,6 +108,18 @@ export default function AdminProp() {
             toast.error('Please provide Name, City and Price');
             return;
         }
+        
+        // For new properties, show payment modal first
+        if (!editId) {
+            setShowPaymentModal(true);
+            return;
+        }
+        
+        // For editing existing properties, proceed directly
+        await saveProperty();
+    };
+
+    const saveProperty = async () => {
         try {
             setIsSubmitting(true);
             const timestamp = Date.now();
@@ -149,7 +163,16 @@ export default function AdminProp() {
                 createdAt: editId ? undefined : timestamp,
                 updatedAt: timestamp,
                 lastModifiedAt: timestamp,
-                lastModifiedBy: 'admin'
+                lastModifiedBy: 'admin',
+                // Add platform fee information for admin properties (no fee required)
+                platformFee: {
+                    amount: 0, // Admin properties have no platform fee
+                    status: 'completed', // Admin properties are automatically completed
+                    paymentMethod: 'Admin Creation',
+                    paidAt: timestamp,
+                    transactionId: `admin_${timestamp}`,
+                    isAdminCreated: true
+                }
             };
 
             const writePromise = editId
@@ -171,6 +194,24 @@ export default function AdminProp() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handlePaymentSuccess = async () => {
+        await saveProperty();
+        setShowPaymentModal(false);
+    };
+
+    const getPropertyDataForPayment = () => {
+        const timestamp = Date.now();
+        const id = `prop_${timestamp}_${Math.random().toString(36).slice(2,8)}`;
+        return {
+            id,
+            name: form.name.trim(),
+            city: form.city.trim(),
+            landlordId: 'admin',
+            landlordName: 'Admin',
+            isAdminCreated: true
+        };
     };
 
     const startEdit = (prop) => {
@@ -241,6 +282,9 @@ export default function AdminProp() {
             </Link>
             <Link to="/admin/properties" className="nav-item active">
               <FaBuilding /> Properties
+            </Link>
+            <Link to="/admin/verification" className="nav-item">
+              <FaCheckCircle /> Verification
             </Link>
             <Link to="/admin/transactions" className="nav-item">
               <FaMoneyBillWave /> Transactions
@@ -401,13 +445,6 @@ export default function AdminProp() {
                                                     </span>
                                                 </td>
                                                 <td data-label="Actions">
-                                                    <button 
-                                                        className="table-action-btn verify-btn" 
-                                                        title={p.isVerified ? "Unverify" : "Verify"} 
-                                                        onClick={() => toggleVerification(p)} 
-                                                    >
-                                                        {p.isVerified ? <FaTimesCircle /> : <FaCheckCircle />}
-                                                    </button>
                                                     <button className="table-action-btn edit-btn" title="Edit" onClick={() => startEdit(p)}><FaEdit /></button>
                                                     <button className="table-action-btn delete-btn" title="Delete" onClick={() => deleteProperty(p.id)}><FaTrash /></button>
                                                 </td>
@@ -420,6 +457,14 @@ export default function AdminProp() {
                     </div>
         </section>
       </main>
+      {showPaymentModal && (
+            <PaymentModal 
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)} 
+                onSuccess={handlePaymentSuccess}
+                propertyData={getPropertyDataForPayment()}
+            />
+        )}
     </div>
   );
 }
