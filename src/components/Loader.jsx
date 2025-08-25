@@ -5,7 +5,7 @@ const Loader = () => {
   return (
     <div className="loader-overlay">
       <div className="loader-spinner"></div>
-      <p>Loading...</p>
+              <p></p>
     </div>
   );
 };

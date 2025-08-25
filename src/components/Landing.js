@@ -217,7 +217,7 @@ function Landing() {
           {loading && filteredProperties.length === 0 ? (
             <div className="loading-container">
               <div className="loading-spinner"></div>
-              <p>Loading properties...</p>
+                              <p></p>
             </div>
           ) : filteredProperties.length === 0 ? (
             <div className="no-properties">
@@ -512,14 +512,29 @@ function Landing() {
                     </p>
                     
                     <div className="modal-actions">
-                      <motion.button
-                        className="modal-cta-btn"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => navigate("/signin")}
-                      >
-                        Contact Agent
-                      </motion.button>
+                      {selectedProperty.isVerified ? (
+                        <motion.button
+                          className="modal-cta-btn"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => navigate("/signin")}
+                        >
+                          Contact
+                        </motion.button>
+                      ) : (
+                        <div style={{ 
+                          padding: '1rem', 
+                          background: '#fef3c7', 
+                          border: '1px solid #f59e0b',
+                          borderRadius: '8px',
+                          textAlign: 'center',
+                          color: '#d97706'
+                        }}>
+                          <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                            This property is not yet verified. Contact option will be available once verification is complete.
+                          </p>
+                        </div>
+                      )}
                       <motion.button
                         className="modal-secondary-btn"
                         whileHover={{ scale: 1.02 }}

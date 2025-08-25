@@ -162,6 +162,9 @@ function Signin() {
             case 'technician':
               navigate("/technician");
               break;
+            case 'council':
+              navigate("/council");
+              break;
             default:
               setError("Invalid account type.");
           }

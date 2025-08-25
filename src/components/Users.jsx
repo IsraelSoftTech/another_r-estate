@@ -150,7 +150,7 @@ const Users = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="4" className="empty-state">Loading users...</td>
+                                            <td colSpan="4" className="empty-state"></td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>

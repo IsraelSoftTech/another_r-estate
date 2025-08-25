@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './AdminDash.css';
-import { FaHome, FaUsers, FaBuilding, FaMoneyBillWave, FaLandmark, FaBars, FaCheckCircle, FaClock, FaCheckCircle as FaApproved } from 'react-icons/fa';
+import { FaHome, FaCheckCircle, FaBars, FaCheckCircle as FaApproved, FaClock, FaEye, FaCheck, FaBan } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
 import { db, ensureAuthUser } from '../firebase';
-import { onValue, ref } from 'firebase/database';
+import { onValue, ref, update } from 'firebase/database';
 import { toast } from 'react-toastify';
 
-const AdminGov = () => {
+export default function CouncilDash() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [forwardedVerifications, setForwardedVerifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     let off;
@@ -42,18 +44,15 @@ const AdminGov = () => {
             .sort((a, b) => (b.governmentRequestedAt || 0) - (a.governmentRequestedAt || 0));
           
           setForwardedVerifications(list);
-          setLoading(false);
         }, (err) => {
           if (cancelled) return;
           console.error('Failed to load forwarded verifications:', err);
           toast.error('Failed to load forwarded verifications');
-          setLoading(false);
         });
       })
       .catch((err) => {
         if (cancelled) return;
         toast.error(err?.message || 'Authentication required');
-        setLoading(false);
       });
 
     return () => {
@@ -61,6 +60,54 @@ const AdminGov = () => {
       if (typeof off === 'function') off();
     };
   }, []);
+
+  const openVerificationModal = (request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRequest(null);
+  };
+
+  const handleVerification = async (action) => {
+    if (!selectedRequest || isProcessing) return;
+
+    setIsProcessing(true);
+    try {
+      const timestamp = Date.now();
+      let updates = {};
+
+      if (action === 'reject') {
+        updates = {
+          governmentApproved: false,
+          governmentRejected: true,
+          governmentRejectedAt: timestamp,
+          verificationStatus: 'rejected_by_government'
+        };
+      } else if (action === 'approve') {
+        updates = {
+          governmentApproved: true,
+          governmentApprovedAt: timestamp,
+          verificationStatus: 'approved_by_government',
+          isVerified: true,
+          verifiedAt: timestamp,
+          verifiedBy: 'government'
+        };
+      }
+
+      await update(ref(db, `properties/${selectedRequest.id}`), updates);
+      
+      const actionText = action === 'reject' ? 'rejected' : 'approved';
+      toast.success(`Property ${actionText} successfully`);
+      closeModal();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update verification status');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const formatPrice = (price) => {
     if (typeof price !== 'number') return '';
@@ -104,23 +151,11 @@ const AdminGov = () => {
         </div>
         <nav className="nav-menu">
           <div className="menu-items">
-            <Link to="/admin" className="nav-item">
+            <Link to="/council" className="nav-item active">
               <FaHome /> Dashboard
             </Link>
-            <Link to="/admin/users" className="nav-item">
-              <FaUsers /> Users
-            </Link>
-            <Link to="/admin/properties" className="nav-item">
-              <FaBuilding /> Properties
-            </Link>
-            <Link to="/admin/verification" className="nav-item">
-              <FaCheckCircle /> Verification
-            </Link>
-            <Link to="/admin/transactions" className="nav-item">
-              <FaMoneyBillWave /> Transactions
-            </Link>
-            <Link to="/admin/government" className="nav-item last-item active">
-              <FaLandmark /> Government
+            <Link to="/council/verifications" className="nav-item last-item">
+              <FaCheckCircle /> Verifications
             </Link>
           </div>
           <div className="mobile-menu-footer">
@@ -131,7 +166,7 @@ const AdminGov = () => {
       </aside>
       <main className="main-content">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">Government Verification Requests</h1>
+          <h1 className="dashboard-title">Council Dashboard</h1>
           <div className="header-actions">
             <button className="menu-toggle" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Toggle menu">
               <FaBars />
@@ -180,6 +215,7 @@ const AdminGov = () => {
                       <th>Price</th>
                       <th>Forwarded Date</th>
                       <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -215,6 +251,17 @@ const AdminGov = () => {
                             {getStatusIcon(verification.status)} {verification.status}
                           </span>
                         </td>
+                        <td data-label="Actions">
+                          {verification.status === 'pending' && (
+                            <button 
+                              className="table-action-btn edit-btn" 
+                              title="View Details" 
+                              onClick={() => openVerificationModal(verification)}
+                            >
+                              <FaEye />
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -224,8 +271,88 @@ const AdminGov = () => {
           </div>
         </section>
       </main>
+
+      {/* Verification Modal */}
+      {isModalOpen && selectedRequest && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Property Verification Request</h2>
+              <button className="modal-close" onClick={closeModal}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="property-info">
+                <h3>{selectedRequest.name}</h3>
+                <p><strong>Location:</strong> {selectedRequest.city || selectedRequest.location}</p>
+                <p><strong>Price:</strong> {formatPrice(selectedRequest.price)}</p>
+                <p><strong>Type:</strong> {selectedRequest.propertyType}</p>
+                <p><strong>Listing:</strong> {selectedRequest.listingType}</p>
+                <p><strong>Landlord:</strong> {selectedRequest.landlordName}</p>
+                <p><strong>Forwarded:</strong> {formatDate(selectedRequest.governmentRequestedAt)}</p>
+                
+                {selectedRequest.description && (
+                  <div className="description-section">
+                    <h4>Description:</h4>
+                    <p>{selectedRequest.description}</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedRequest.landTitle && (
+                <div className="land-title-section">
+                  <h4>Land Title Certificate:</h4>
+                  <div className="land-title-image">
+                    <img 
+                      src={selectedRequest.landTitle} 
+                      alt="Land Title Certificate"
+                      style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd', borderRadius: '8px' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.mainImage && (
+                <div className="main-image-section">
+                  <h4>Property Image:</h4>
+                  <div className="property-image">
+                    <img 
+                      src={selectedRequest.mainImage} 
+                      alt="Property"
+                      style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd', borderRadius: '8px' }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                className="action-button secondary-button" 
+                onClick={closeModal}
+                disabled={isProcessing}
+              >
+                Cancel
+              </button>
+              <button 
+                className="action-button danger-button" 
+                onClick={() => handleVerification('reject')}
+                disabled={isProcessing}
+                style={{ backgroundColor: '#dc2626', color: 'white' }}
+              >
+                {isProcessing ? 'Rejecting...' : <><FaBan /> Reject</>}
+              </button>
+              <button 
+                className="action-button primary-button" 
+                onClick={() => handleVerification('approve')}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Approving...' : <><FaCheck /> Approve</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export default AdminGov; 
+}

@@ -403,7 +403,7 @@ export default function AdminProp() {
                     <div className="table-wrapper" style={{ marginTop: '1rem', overflowX: 'auto' }}>
                         {isLoading ? (
                             <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-                                <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Loading properties...</div>
+                                <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}></div>
                                 <div style={{ fontSize: '0.9rem' }}>Please wait while we fetch your properties</div>
                             </div>
                         ) : properties.length === 0 ? (

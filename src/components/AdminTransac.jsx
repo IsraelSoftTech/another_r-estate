@@ -17,9 +17,18 @@ const AdminTransac = () => {
   useEffect(() => {
     let off;
     let cancelled = false;
+    let timeoutId;
 
     const loadTransactions = async () => {
       try {
+        // Set a timeout to prevent infinite loading
+        timeoutId = setTimeout(() => {
+          if (!cancelled) {
+            setLoading(false);
+            toast.error('Loading timeout. Please refresh the page.');
+          }
+        }, 2000);
+
         // Load platform fee information from properties node
         const propsRef = ref(db, 'properties');
         off = onValue(propsRef, (snap) => {
@@ -65,17 +74,20 @@ const AdminTransac = () => {
           
           setTransactions(list);
           setLoading(false);
+          clearTimeout(timeoutId);
         }, (err) => {
           if (cancelled) return;
           console.error('Failed to load properties with platform fee info:', err);
           toast.error('Failed to load transactions');
           setLoading(false);
+          clearTimeout(timeoutId);
         });
       } catch (error) {
         if (cancelled) return;
         console.error('Error loading transactions:', error);
         toast.error('Error loading transactions');
         setLoading(false);
+        clearTimeout(timeoutId);
       }
     };
 
@@ -83,6 +95,7 @@ const AdminTransac = () => {
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
       if (typeof off === 'function') off();
     };
   }, []);
@@ -186,7 +199,7 @@ const AdminTransac = () => {
     return (
       <div className="admin-dashboard">
         <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <div className="loader">Loading transactions...</div>
+          <div className="loader"></div>
         </div>
       </div>
     );

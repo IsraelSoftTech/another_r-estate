@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './AdminDash.css';
-import { FaHome, FaBuilding, FaSearch, FaBars, FaMapMarkerAlt, FaBed, FaBath, FaRulerCombined, FaEnvelope, FaPhone, FaMoneyBillWave } from 'react-icons/fa';
+import { FaHome, FaBuilding, FaMoneyBillWave, FaEnvelope, FaBars, FaMapMarkerAlt, FaBed, FaBath, FaRulerCombined, FaEye, FaComments, FaSearch } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
@@ -9,22 +9,14 @@ import { db, ensureAuthUser } from '../firebase';
 import { ref, onValue, push, set, query, orderByChild } from 'firebase/database';
 import { toast } from 'react-toastify';
 
-const TenantDash = () => {
+export default function TenantProperties() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProperty, setSelectedProperty] = useState(null);
-  const [showInquiryModal, setShowInquiryModal] = useState(false);
-  const [inquiryForm, setInquiryForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    message: '',
-    inquiryType: 'general'
-  });
-  const [submittingInquiry, setSubmittingInquiry] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
@@ -100,104 +92,19 @@ const TenantDash = () => {
     setFilteredProperties(filtered);
   }, [searchQuery, properties]);
 
-  const handleInquirySubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!selectedProperty) {
-      toast.error('No property selected for inquiry');
-      return;
-    }
-
-    if (!inquiryForm.name.trim() || !inquiryForm.email.trim() || !inquiryForm.phone.trim()) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    setSubmittingInquiry(true);
-
-    try {
-      // Create transaction record for the inquiry
-      const transactionData = {
-        propertyId: selectedProperty.id,
-        propertyName: selectedProperty.name,
-        landlordId: selectedProperty.landlordId,
-        landlordName: selectedProperty.landlordName,
-        tenantId: currentUser?.uid || 'anonymous',
-        tenantName: inquiryForm.name,
-        tenantEmail: inquiryForm.email,
-        tenantPhone: inquiryForm.phone,
-        amount: 0, // Inquiry has no cost
-        type: 'Property Inquiry',
-        inquiryType: inquiryForm.inquiryType,
-        message: inquiryForm.message,
-        status: 'pending', // Admin can review and respond
-        timestamp: Date.now(),
-        createdAt: Date.now(),
-        description: `${inquiryForm.inquiryType} inquiry for ${selectedProperty.name}`,
-        inquiryDetails: {
-          name: inquiryForm.name,
-          email: inquiryForm.email,
-          phone: inquiryForm.phone,
-          message: inquiryForm.message,
-          type: inquiryForm.inquiryType
-        }
-      };
-
-      // Save inquiry transaction to database
-      const transactionsRef = ref(db, 'transactions');
-      let newTransactionRef;
-      
-      try {
-        // Try to save to transactions node first
-        newTransactionRef = push(transactionsRef);
-        await set(newTransactionRef, transactionData);
-        console.log('Inquiry transaction created successfully in transactions node:', newTransactionRef.key);
-      } catch (transactionError) {
-        console.warn('Failed to create transaction in transactions node, using properties node as fallback:', transactionError);
-        
-        // Fallback: Store transaction in properties node with a special prefix
-        const fallbackRef = ref(db, `properties/transaction_${Date.now()}_${Math.random().toString(36).slice(2,8)}`);
-        await set(fallbackRef, transactionData);
-        newTransactionRef = fallbackRef;
-        console.log('Inquiry transaction created successfully in properties node (fallback):', fallbackRef.key);
-      }
-
-      toast.success('Inquiry submitted successfully! We will contact you soon.');
-      
-      // Reset form and close modal
-      setInquiryForm({
-        name: '',
-        email: '',
-        phone: '',
-        message: '',
-        inquiryType: 'general'
-      });
-      setShowInquiryModal(false);
-      setSelectedProperty(null);
-
-    } catch (error) {
-      console.error('Error submitting inquiry:', error);
-      toast.error('Failed to submit inquiry. Please try again.');
-    } finally {
-      setSubmittingInquiry(false);
-    }
-  };
-
-  const openInquiryModal = (property) => {
+  const openDetailsModal = (property) => {
     setSelectedProperty(property);
-    setShowInquiryModal(true);
+    setShowDetailsModal(true);
   };
 
-  const closeInquiryModal = () => {
-    setShowInquiryModal(false);
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
     setSelectedProperty(null);
-    setInquiryForm({
-      name: '',
-      email: '',
-      phone: '',
-      message: '',
-      inquiryType: 'general'
-    });
+  };
+
+  const handleContact = (property) => {
+    // Navigate to chat with the landlord
+    window.location.href = `/tenant/chats?landlord=${property.landlordId}&property=${property.id}`;
   };
 
   const formatPrice = (price) => {
@@ -235,10 +142,10 @@ const TenantDash = () => {
         </div>
         <nav className="nav-menu">
           <div className="menu-items">
-            <Link to="/tenant" className="nav-item active">
+            <Link to="/tenant" className="nav-item">
               <FaHome /> Dashboard
             </Link>
-            <Link to="/tenant/properties" className="nav-item">
+            <Link to="/tenant/properties" className="nav-item active">
               <FaBuilding /> Properties
             </Link>
             <Link to="/tenant/transactions" className="nav-item">
@@ -257,7 +164,7 @@ const TenantDash = () => {
       
       <main className="main-content">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">Available Properties</h1>
+          <h1 className="dashboard-title">Verified Properties</h1>
           <div className="header-actions">
             <button className="menu-toggle" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Toggle menu">
               <FaBars />
@@ -291,30 +198,10 @@ const TenantDash = () => {
             </div>
           </div>
 
-          <div className="dashboard-stats">
-            <div className="stat-card">
-              <h3>Total Properties</h3>
-              <p className="stat-number">{properties.length}</p>
-            </div>
-            <div className="stat-card">
-              <h3>For Sale</h3>
-              <p className="stat-number">{properties.filter(p => p.listingType === 'sale').length}</p>
-            </div>
-            <div className="stat-card">
-              <h3>For Rent</h3>
-              <p className="stat-number">{properties.filter(p => p.listingType === 'rent').length}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Available Now</h3>
-              <p className="stat-number">{filteredProperties.length}</p>
-            </div>
-          </div>
-
           <div className="properties-grid" style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
-            gap: '1.5rem',
-            marginTop: '2rem'
+            gap: '1.5rem'
           }}>
             {filteredProperties.length === 0 ? (
               <div style={{ 
@@ -324,7 +211,7 @@ const TenantDash = () => {
                 color: '#666' 
               }}>
                 <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
-                  {searchQuery ? 'No properties match your search' : 'No properties available'}
+                  {searchQuery ? 'No properties match your search' : 'No verified properties available'}
                 </div>
                 <div style={{ fontSize: '0.9rem' }}>
                   {searchQuery ? 'Try adjusting your search terms' : 'Check back later for new listings'}
@@ -431,14 +318,24 @@ const TenantDash = () => {
                     </span>
                   </div>
 
-                  <button
-                    className="action-button primary-button"
-                    onClick={() => openInquiryModal(property)}
-                    style={{ width: '100%' }}
-                  >
-                    <FaEnvelope style={{ marginRight: '0.5rem' }} />
-                    Make Inquiry
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      className="action-button secondary-button"
+                      onClick={() => openDetailsModal(property)}
+                      style={{ flex: 1 }}
+                    >
+                      <FaEye style={{ marginRight: '0.5rem' }} />
+                      View Details
+                    </button>
+                    <button
+                      className="action-button primary-button"
+                      onClick={() => handleContact(property)}
+                      style={{ flex: 1 }}
+                    >
+                      <FaComments style={{ marginRight: '0.5rem' }} />
+                      Contact
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -446,99 +343,132 @@ const TenantDash = () => {
         </section>
       </main>
 
-      {/* Inquiry Modal */}
-      {showInquiryModal && selectedProperty && (
-        <div className="modal-overlay" onClick={closeInquiryModal}>
+      {/* Property Details Modal */}
+      {showDetailsModal && selectedProperty && (
+        <div className="modal-overlay" onClick={closeDetailsModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Property Inquiry</h2>
-              <button className="modal-close" onClick={closeInquiryModal}>×</button>
+              <h2>Property Details</h2>
+              <button className="modal-close" onClick={closeDetailsModal}>×</button>
             </div>
             
             <div className="modal-body">
+              {selectedProperty.mainImage && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <img 
+                    src={selectedProperty.mainImage} 
+                    alt={selectedProperty.name}
+                    style={{ 
+                      width: '100%', 
+                      height: '200px', 
+                      objectFit: 'cover', 
+                      borderRadius: '8px' 
+                    }}
+                  />
+                </div>
+              )}
+
               <div style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#1e293b' }}>
                   {selectedProperty.name || 'Untitled Property'}
                 </h3>
-                <p style={{ margin: '0', color: '#64748b' }}>
-                  {selectedProperty.city || selectedProperty.location} - {formatPrice(selectedProperty.price)}
+                <p style={{ margin: '0 0 1rem 0', color: '#64748b' }}>
+                  {selectedProperty.city || selectedProperty.location}
                 </p>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  color: '#3b82f6',
+                  fontWeight: '600',
+                  marginBottom: '1rem'
+                }}>
+                  <FaMoneyBillWave />
+                  <span>{formatPrice(selectedProperty.price)}</span>
+                </div>
               </div>
 
-              <form onSubmit={handleInquirySubmit}>
-                <div className="form-row">
-                  <label>Full Name *</label>
-                  <input
-                    type="text"
-                    value={inquiryForm.name}
-                    onChange={(e) => setInquiryForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
+              <div style={{ 
+                display: 'flex', 
+                gap: '1rem', 
+                marginBottom: '1.5rem',
+                flexWrap: 'wrap'
+              }}>
+                {selectedProperty.bedrooms > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#64748b' }}>
+                    <FaBed />
+                    <span>{selectedProperty.bedrooms} Bedrooms</span>
+                  </div>
+                )}
+                {selectedProperty.bathrooms > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#64748b' }}>
+                    <FaBath />
+                    <span>{selectedProperty.bathrooms} Bathrooms</span>
+                  </div>
+                )}
+                {selectedProperty.area > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#64748b' }}>
+                    <FaRulerCombined />
+                    <span>{selectedProperty.area} {selectedProperty.sizeUnit || 'sqm'}</span>
+                  </div>
+                )}
+              </div>
 
-                <div className="form-row">
-                  <label>Email *</label>
-                  <input
-                    type="email"
-                    value={inquiryForm.email}
-                    onChange={(e) => setInquiryForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter your email address"
-                    required
-                  />
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: '#1e293b' }}>Property Details</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <strong>Type:</strong> {selectedProperty.propertyType || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Listing:</strong> {getListingTypeText(selectedProperty.listingType)}
+                  </div>
+                  <div>
+                    <strong>Landlord:</strong> {selectedProperty.landlordName || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Status:</strong> 
+                    <span style={{
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '500',
+                      background: '#dcfce7',
+                      color: '#059669',
+                      marginLeft: '0.5rem'
+                    }}>
+                      Verified
+                    </span>
+                  </div>
                 </div>
+              </div>
 
-                <div className="form-row">
-                  <label>Phone Number *</label>
-                  <input
-                    type="tel"
-                    value={inquiryForm.phone}
-                    onChange={(e) => setInquiryForm(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Enter your phone number"
-                    required
-                  />
+              {selectedProperty.description && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#1e293b' }}>Description</h4>
+                  <p style={{ margin: 0, color: '#64748b', lineHeight: '1.6' }}>
+                    {selectedProperty.description}
+                  </p>
                 </div>
-
-                <div className="form-row">
-                  <label>Inquiry Type</label>
-                  <select
-                    value={inquiryForm.inquiryType}
-                    onChange={(e) => setInquiryForm(prev => ({ ...prev, inquiryType: e.target.value }))}
-                  >
-                    <option value="general">General Inquiry</option>
-                    <option value="viewing">Schedule Viewing</option>
-                    <option value="purchase">Purchase Interest</option>
-                    <option value="rental">Rental Interest</option>
-                    <option value="negotiation">Price Negotiation</option>
-                  </select>
-                </div>
-
-                <div className="form-row">
-                  <label>Message</label>
-                  <textarea
-                    value={inquiryForm.message}
-                    onChange={(e) => setInquiryForm(prev => ({ ...prev, message: e.target.value }))}
-                    placeholder="Tell us more about your interest in this property..."
-                    rows="4"
-                  />
-                </div>
-              </form>
+              )}
             </div>
 
             <div className="modal-footer">
               <button 
                 className="action-button secondary-button" 
-                onClick={closeInquiryModal}
-                disabled={submittingInquiry}
+                onClick={closeDetailsModal}
               >
-                Cancel
+                Close
               </button>
               <button 
                 className="action-button primary-button" 
-                onClick={handleInquirySubmit}
-                disabled={submittingInquiry}
+                onClick={() => {
+                  closeDetailsModal();
+                  handleContact(selectedProperty);
+                }}
               >
-                {submittingInquiry ? 'Submitting...' : 'Submit Inquiry'}
+                <FaComments style={{ marginRight: '0.5rem' }} />
+                Contact Landlord
               </button>
             </div>
           </div>
@@ -546,6 +476,4 @@ const TenantDash = () => {
       )}
     </div>
   );
-};
-
-export default TenantDash; 
+}

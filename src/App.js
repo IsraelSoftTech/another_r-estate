@@ -15,6 +15,11 @@ import AdminGov from './components/AdminGov';
 import AdminVerification from './components/AdminVerification';
 import Users from './components/Users';
 import LordDash from './components/LordDash';
+import CouncilDash from './components/CouncilDash';
+import CouncilVerifications from './components/CouncilVerifications';
+import TenantProperties from './components/TenantProperties';
+import TenantTransactions from './components/TenantTransactions';
+import Chat from './components/Chat';
 import LandProp from './components/LandProp';
 import LandInquire from './components/LandInquire';
 import TenantDash from './components/TenantDash';
@@ -58,14 +63,23 @@ function App() {
         <Route path="/admin/transactions" element={<AdminTransac />} />
         <Route path="/admin/government" element={<AdminGov />} />
         
+        {/* Council Routes */}
+        <Route path="/council" element={<CouncilDash />} />
+        <Route path="/council/verifications" element={<CouncilVerifications />} />
+        
         {/* Landlord Routes */}
         <Route path="/landlord" element={<LordDash />} />
         <Route path="/landlord/properties" element={<LandProp />} />
         <Route path="/landlord/transactions" element={<LandTransac />} />
-        <Route path="/landlord/inquiries" element={<LandInquire />} />
+        <Route path="/landlord/chats" element={<Chat />} />
+        
+        {/* Tenant Routes */}
+        <Route path="/tenant" element={<TenantDash />} />
+        <Route path="/tenant/properties" element={<TenantProperties />} />
+        <Route path="/tenant/transactions" element={<TenantTransactions />} />
+        <Route path="/tenant/chats" element={<Chat />} />
         
         {/* Other Dashboard Routes */}
-        <Route path="/tenant" element={<TenantDash />} />
         <Route path="/technician" element={<TechDash />} />
         
         {/* Default redirect */}

@@ -233,6 +233,7 @@ function Signup() {
                   <option value="tenant">Tenant</option>
                   <option value="landlord">Land Lord</option>
                   <option value="technician">Technician</option>
+                  <option value="council">Council</option>
                 </Select>
               </InputWrapper>
             </InputGroup>
