@@ -25,7 +25,6 @@ const AdminTransac = () => {
         timeoutId = setTimeout(() => {
           if (!cancelled) {
             setLoading(false);
-            toast.error('Loading timeout. Please refresh the page.');
           }
         }, 2000);
 
@@ -78,14 +77,12 @@ const AdminTransac = () => {
         }, (err) => {
           if (cancelled) return;
           console.error('Failed to load properties with platform fee info:', err);
-          toast.error('Failed to load transactions');
           setLoading(false);
           clearTimeout(timeoutId);
         });
       } catch (error) {
         if (cancelled) return;
         console.error('Error loading transactions:', error);
-        toast.error('Error loading transactions');
         setLoading(false);
         clearTimeout(timeoutId);
       }
@@ -116,7 +113,7 @@ const AdminTransac = () => {
       }
       
       if (!propertyId) {
-        toast.error('Property not found for this transaction');
+
         return;
       }
       
@@ -128,10 +125,10 @@ const AdminTransac = () => {
       };
       
       await update(ref(db, `properties/${propertyId}`), updateData);
-      toast.success(`Transaction status updated to ${newStatus}`);
+
     } catch (error) {
       console.error('Error updating transaction status:', error);
-      toast.error('Failed to update transaction status');
+
     }
   };
 

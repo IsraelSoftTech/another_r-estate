@@ -1289,4 +1289,87 @@
   .properties-table td {
     padding: 0.5rem 0.25rem;
   }
-} 
+}
+
+/* Modal Animations */
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Responsive Modal */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95vw !important;
+    maxHeight: 95vh !important;
+    margin: 0.5rem;
+  }
+  
+  .modal-body {
+    padding: 1rem !important;
+  }
+  
+  .modal-footer {
+    padding: 1rem !important;
+    flex-direction: column;
+  }
+  
+  .modal-footer button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-header {
+    padding: 1rem 1.5rem 0.75rem !important;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  .modal-body {
+    padding: 0.75rem !important;
+  }
+  
+  .modal-footer {
+    padding: 0.75rem !important;
+  }
+}
+
+/* Properties Grid Responsive */
+@media (max-width: 768px) {
+  .properties-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .property-card {
+    padding: 1rem !important;
+  }
+  
+  .property-card .action-button {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .properties-grid {
+    gap: 0.75rem !important;
+  }
+  
+  .property-card {
+    padding: 0.75rem !important;
+  }
+  
+  .property-card h3 {
+    font-size: 1.1rem !important;
+  }
+}

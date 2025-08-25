@@ -21,7 +21,7 @@ import TenantProperties from './components/TenantProperties';
 import TenantTransactions from './components/TenantTransactions';
 import Chat from './components/Chat';
 import LandProp from './components/LandProp';
-import LandInquire from './components/LandInquire';
+
 import TenantDash from './components/TenantDash';
 import TechDash from './components/TechDash';
 import LandTransac from './components/LandTransac';

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './AdminDash.css';
 import { FaHome, FaBuilding, FaMoneyBillWave, FaEnvelope, FaBars, FaMapMarkerAlt, FaBed, FaBath, FaRulerCombined, FaEye, FaComments, FaSearch } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
 import { db, ensureAuthUser } from '../firebase';
-import { ref, onValue, push, set, query, orderByChild } from 'firebase/database';
+import { ref, onValue, push, set, query, orderByChild, get } from 'firebase/database';
 import { toast } from 'react-toastify';
 
 export default function TenantProperties() {
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
@@ -18,6 +19,7 @@ export default function TenantProperties() {
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [landlordNames, setLandlordNames] = useState({});
 
   useEffect(() => {
     let off;
@@ -30,7 +32,6 @@ export default function TenantProperties() {
         timeoutId = setTimeout(() => {
           if (!cancelled) {
             setLoading(false);
-            toast.error('Loading timeout. Please refresh the page.');
           }
         }, 2000);
 
@@ -38,34 +39,37 @@ export default function TenantProperties() {
         if (cancelled) return;
         setCurrentUser(user);
 
-        // Load only verified properties
+        // Load all properties and filter for verified ones
         const propsRef = ref(db, 'properties');
-        const verifiedPropsQuery = query(propsRef, orderByChild('isVerified'));
         
-        off = onValue(verifiedPropsQuery, (snap) => {
+        off = onValue(propsRef, (snap) => {
           if (cancelled) return;
           
           const raw = snap.val() || {};
+          console.log('Raw properties data:', raw);
+          
           const list = Object.entries(raw)
             .map(([id, p]) => ({ id, ...p }))
             .filter(p => p.isVerified === true) // Only show verified properties
             .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
           
+          console.log('Filtered verified properties:', list);
           setProperties(list);
           setFilteredProperties(list);
           setLoading(false);
           clearTimeout(timeoutId);
+          
+          // Load landlord names for the properties
+          loadLandlordNames(list);
         }, (err) => {
           if (cancelled) return;
           console.error('Failed to load properties:', err);
-          toast.error('Failed to load properties');
           setLoading(false);
           clearTimeout(timeoutId);
         });
       } catch (error) {
         if (cancelled) return;
         console.error('Error loading properties:', error);
-        toast.error('Error loading properties');
         setLoading(false);
         clearTimeout(timeoutId);
       }
@@ -93,6 +97,10 @@ export default function TenantProperties() {
   }, [searchQuery, properties]);
 
   const openDetailsModal = (property) => {
+    console.log('Opening modal for property:', property);
+    console.log('Landlord names available:', landlordNames);
+    console.log('Property landlord ID:', property.landlordId);
+    console.log('Landlord name for this property:', landlordNames[property.landlordId]);
     setSelectedProperty(property);
     setShowDetailsModal(true);
   };
@@ -104,7 +112,8 @@ export default function TenantProperties() {
 
   const handleContact = (property) => {
     // Navigate to chat with the landlord
-    window.location.href = `/tenant/chats?landlord=${property.landlordId}&property=${property.id}`;
+    console.log('Starting chat with:', { landlordId: property.landlordId, propertyId: property.id, propertyName: property.name });
+    navigate(`/tenant/chats?landlord=${property.landlordId}&property=${property.id}`);
   };
 
   const formatPrice = (price) => {
@@ -119,6 +128,46 @@ export default function TenantProperties() {
       case 'pledge': return 'For Pledge';
       case 'lease': return 'For Lease';
       default: return 'For Sale';
+    }
+  };
+
+  const loadLandlordNames = async (propertiesList) => {
+    try {
+      // Get unique landlord IDs from properties
+      const landlordIds = [...new Set(propertiesList.map(p => p.landlordId).filter(Boolean))];
+      
+      if (landlordIds.length === 0) return;
+      
+      // Try both 'users' and 'accounts' databases
+      const usersRef = ref(db, 'users');
+      const accountsRef = ref(db, 'accounts');
+      
+      const [usersSnap, accountsSnap] = await Promise.all([
+        get(usersRef),
+        get(accountsRef)
+      ]);
+      
+      const users = usersSnap.val() || {};
+      const accounts = accountsSnap.val() || {};
+      
+      // Combine both databases
+      const allUsers = { ...users, ...accounts };
+      
+      // Create a mapping of landlord ID to name
+      const namesMap = {};
+      landlordIds.forEach(id => {
+        if (allUsers[id]) {
+          const landlord = allUsers[id];
+          namesMap[id] = landlord.displayName || landlord.username || landlord.email || 'Landlord';
+        } else {
+          namesMap[id] = 'Landlord';
+        }
+      });
+      
+      setLandlordNames(namesMap);
+      console.log('Landlord names loaded:', namesMap);
+    } catch (error) {
+      console.error('Error loading landlord names:', error);
     }
   };
 
@@ -200,7 +249,7 @@ export default function TenantProperties() {
 
           <div className="properties-grid" style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
             gap: '1.5rem'
           }}>
             {filteredProperties.length === 0 ? (
@@ -333,7 +382,7 @@ export default function TenantProperties() {
                       style={{ flex: 1 }}
                     >
                       <FaComments style={{ marginRight: '0.5rem' }} />
-                      Contact
+                      Start Chat
                     </button>
                   </div>
                 </div>
@@ -345,14 +394,82 @@ export default function TenantProperties() {
 
       {/* Property Details Modal */}
       {showDetailsModal && selectedProperty && (
-        <div className="modal-overlay" onClick={closeDetailsModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Property Details</h2>
-              <button className="modal-close" onClick={closeDetailsModal}>×</button>
+        <div 
+          className="modal-overlay" 
+          onClick={closeDetailsModal}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+        >
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              width: '600px',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              animation: 'modalSlideIn 0.3s ease-out'
+            }}
+          >
+            <div 
+              className="modal-header"
+              style={{
+                padding: '1.5rem 2rem 1rem',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white'
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>Property Details</h2>
+              <button 
+                className="modal-close" 
+                onClick={closeDetailsModal}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: 'none',
+                  color: 'white',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+              >
+                ×
+              </button>
             </div>
             
-            <div className="modal-body">
+            <div 
+              className="modal-body"
+              style={{
+                padding: '2rem',
+                maxHeight: '60vh',
+                overflowY: 'auto'
+              }}
+            >
               {selectedProperty.mainImage && (
                 <div style={{ marginBottom: '1.5rem' }}>
                   <img 
@@ -424,7 +541,7 @@ export default function TenantProperties() {
                     <strong>Listing:</strong> {getListingTypeText(selectedProperty.listingType)}
                   </div>
                   <div>
-                    <strong>Landlord:</strong> {selectedProperty.landlordName || 'N/A'}
+                    <strong>Landlord:</strong> {landlordNames[selectedProperty.landlordId] || 'N/A'}
                   </div>
                   <div>
                     <strong>Status:</strong> 
@@ -453,10 +570,39 @@ export default function TenantProperties() {
               )}
             </div>
 
-            <div className="modal-footer">
+            <div 
+              className="modal-footer"
+              style={{
+                padding: '1.5rem 2rem',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'flex-end',
+                background: '#f8fafc'
+              }}
+            >
               <button 
                 className="action-button secondary-button" 
                 onClick={closeDetailsModal}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#f3f4f6';
+                  e.target.style.borderColor = '#9ca3af';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'white';
+                  e.target.style.borderColor = '#d1d5db';
+                }}
               >
                 Close
               </button>
@@ -466,9 +612,31 @@ export default function TenantProperties() {
                   closeDetailsModal();
                   handleContact(selectedProperty);
                 }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 10px 25px -5px rgba(59, 130, 246, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
               >
-                <FaComments style={{ marginRight: '0.5rem' }} />
-                Contact Landlord
+                <FaComments />
+                Start Chat
               </button>
             </div>
           </div>

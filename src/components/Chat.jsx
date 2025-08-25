@@ -6,7 +6,7 @@ import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
 import { db, ensureAuthUser } from '../firebase';
-import { ref, onValue, push, set, query, orderByChild } from 'firebase/database';
+import { ref, onValue, push, set, query, orderByChild, get } from 'firebase/database';
 import { toast } from 'react-toastify';
 
 export default function Chat() {
@@ -22,63 +22,83 @@ export default function Chat() {
   const messagesEndRef = useRef(null);
   const [propertyDetails, setPropertyDetails] = useState(null);
 
+
   useEffect(() => {
     let off;
     let cancelled = false;
-    let timeoutId;
 
     const initializeChat = async () => {
       try {
-        // Set a timeout to prevent infinite loading
-        timeoutId = setTimeout(() => {
-          if (!cancelled) {
-            setLoading(false);
-            toast.error('Loading timeout. Please refresh the page.');
-          }
-        }, 2000);
-
         const user = await ensureAuthUser();
         if (cancelled) return;
         setCurrentUser(user);
 
         // Determine user type from URL
         const path = window.location.pathname;
+        console.log('Current path:', path);
         if (path.includes('/tenant')) {
           setUserType('tenant');
+          console.log('User type set to: tenant');
         } else if (path.includes('/landlord')) {
           setUserType('landlord');
+          console.log('User type set to: landlord');
         }
 
         // Check if there's a specific chat to open from URL params
         const landlordId = searchParams.get('landlord');
         const propertyId = searchParams.get('property');
+        
+        console.log('URL params - landlordId:', landlordId, 'propertyId:', propertyId);
 
         if (landlordId && propertyId) {
+          console.log('Loading property details for chat initialization...');
           // Load property details
           const propertyRef = ref(db, `properties/${propertyId}`);
-          const propertySnap = await onValue(propertyRef, (snap) => {
-            if (snap.exists()) {
-              setPropertyDetails({ id: propertyId, ...snap.val() });
-            }
-          });
-
-          // Create or find chat
-          const chatId = `chat_${user.uid}_${landlordId}_${propertyId}`;
-          await initializeOrJoinChat(chatId, landlordId, propertyId);
+          const propertySnap = await get(propertyRef);
+          
+          if (propertySnap.exists()) {
+            const propertyData = { id: propertyId, ...propertySnap.val() };
+            console.log('Property data loaded:', propertyData);
+            
+            // Load landlord details to get the name
+            const landlordName = await getLandlordName(landlordId);
+            console.log('Landlord name fetched:', landlordName);
+            
+            // Add landlord name to property data
+            const enrichedPropertyData = {
+              ...propertyData,
+              landlordName: landlordName
+            };
+            
+            setPropertyDetails(enrichedPropertyData);
+            console.log('Enriched property data:', enrichedPropertyData);
+            
+            // Create or find chat with enriched property details
+            const chatId = `chat_${user.uid}_${landlordId}_${propertyId}`;
+            console.log('Creating chat with ID:', chatId);
+            await initializeOrJoinChat(chatId, landlordId, propertyId, enrichedPropertyData);
+          } else {
+            console.log('Property not found:', propertyId);
+          }
+        } else {
+          console.log('No landlord or property ID in URL params');
         }
 
         // Load user's chats
         loadUserChats(user.uid);
-
-        // Clear timeout on success
-        clearTimeout(timeoutId);
+        
+        // If we have URL params, also refresh chats after a short delay to ensure new chat appears
+        if (landlordId && propertyId) {
+          setTimeout(() => {
+            loadUserChats(user.uid);
+          }, 1000);
+        }
+        
 
       } catch (error) {
         if (cancelled) return;
         console.error('Error initializing chat:', error);
-        toast.error('Error initializing chat');
         setLoading(false);
-        clearTimeout(timeoutId);
       }
     };
 
@@ -86,67 +106,161 @@ export default function Chat() {
 
     return () => {
       cancelled = true;
-      clearTimeout(timeoutId);
       if (typeof off === 'function') off();
     };
   }, [searchParams]);
 
-  const initializeOrJoinChat = async (chatId, landlordId, propertyId) => {
+  const initializeOrJoinChat = async (chatId, landlordId, propertyId, propertyData) => {
     try {
+      console.log('Initializing/joining chat:', { chatId, landlordId, propertyId, propertyData });
       const chatRef = ref(db, `chats/${chatId}`);
-      const chatSnap = await onValue(chatRef, (snap) => {
-        if (snap.exists()) {
-          setSelectedChat({ id: chatId, ...snap.val() });
-          loadMessages(chatId);
-        } else {
-          // Create new chat
-          const newChat = {
-            id: chatId,
-            tenantId: currentUser.uid,
-            landlordId: landlordId,
-            propertyId: propertyId,
-            createdAt: Date.now(),
-            lastMessage: null,
-            lastMessageTime: null
-          };
-          set(chatRef, newChat);
-          setSelectedChat(newChat);
-        }
-      });
+      
+      // Check if chat exists first
+      const chatSnap = await get(chatRef);
+      
+      if (chatSnap.exists()) {
+        const chatData = chatSnap.val();
+        console.log('Existing chat found:', chatData);
+        setSelectedChat({ id: chatId, ...chatData });
+        loadMessages(chatId);
+      } else {
+        // Create new chat
+        const newChat = {
+          id: chatId,
+          tenantId: currentUser.uid,
+          landlordId: landlordId,
+          propertyId: propertyId,
+          tenantName: currentUser.displayName || currentUser.email || 'Tenant',
+          landlordName: propertyData?.landlordName || 'Landlord',
+          propertyName: propertyData?.name || 'Property',
+          createdAt: Date.now(),
+          lastMessage: null,
+          lastMessageTime: null
+        };
+        await set(chatRef, newChat);
+        console.log('New chat created:', newChat);
+        setSelectedChat(newChat);
+        
+        // Load messages for the new chat
+        loadMessages(chatId);
+      }
     } catch (error) {
       console.error('Error initializing chat:', error);
-      toast.error('Error creating chat');
     }
   };
 
   const loadUserChats = (userId) => {
     const chatsRef = ref(db, 'chats');
-    const userChatsQuery = query(chatsRef, orderByChild(userType === 'tenant' ? 'tenantId' : 'landlordId'));
     
-    onValue(userChatsQuery, (snap) => {
+    onValue(chatsRef, (snap) => {
       const raw = snap.val() || {};
+      console.log('Raw chats data:', raw);
+      
       const list = Object.entries(raw)
         .map(([id, chat]) => ({ id, ...chat }))
         .filter(chat => chat[userType === 'tenant' ? 'tenantId' : 'landlordId'] === userId)
         .sort((a, b) => (b.lastMessageTime || b.createdAt || 0) - (a.lastMessageTime || a.createdAt || 0));
       
+      console.log('Filtered chats for user:', userId, 'User type:', userType, 'Chats:', list);
       setChats(list);
+      setLoading(false);
+      
+             // Load landlord names for tenant users
+       if (userType === 'tenant') {
+         console.log('Loading landlord names for tenant chats...');
+         loadLandlordNames(list);
+       }
+    }, (error) => {
+      console.error('Error loading chats:', error);
+      setChats([]);
       setLoading(false);
     });
   };
 
-  const loadMessages = (chatId) => {
-    const messagesRef = ref(db, `chats/${chatId}/messages`);
-    const messagesQuery = query(messagesRef, orderByChild('timestamp'));
+  const getLandlordName = async (landlordId) => {
+    try {
+      // Try both 'users' and 'accounts' databases
+      const usersRef = ref(db, 'users');
+      const accountsRef = ref(db, 'accounts');
+      
+      const [usersSnap, accountsSnap] = await Promise.all([
+        get(usersRef),
+        get(accountsRef)
+      ]);
+      
+      const users = usersSnap.val() || {};
+      const accounts = accountsSnap.val() || {};
+      
+      // Combine both databases
+      const allUsers = { ...users, ...accounts };
+      
+      if (allUsers[landlordId]) {
+        const landlord = allUsers[landlordId];
+        return landlord.displayName || landlord.username || landlord.email || 'Landlord';
+      }
+      
+      return 'Landlord';
+    } catch (error) {
+      console.error('Error getting landlord name:', error);
+      return 'Landlord';
+    }
+  };
+
+  const loadLandlordNames = async (chatsList) => {
+    if (userType !== 'tenant') return;
     
-    onValue(messagesQuery, (snap) => {
+    try {
+      // Try both 'users' and 'accounts' databases
+      const usersRef = ref(db, 'users');
+      const accountsRef = ref(db, 'accounts');
+      
+      const [usersSnap, accountsSnap] = await Promise.all([
+        get(usersRef),
+        get(accountsRef)
+      ]);
+      
+      const users = usersSnap.val() || {};
+      const accounts = accountsSnap.val() || {};
+      
+      // Combine both databases
+      const allUsers = { ...users, ...accounts };
+      
+      const updatedChats = chatsList.map(chat => {
+        if (chat.landlordId && allUsers[chat.landlordId]) {
+          const landlord = allUsers[chat.landlordId];
+          return {
+            ...chat,
+            landlordName: landlord.displayName || landlord.username || landlord.email || 'Landlord'
+          };
+        }
+        return chat;
+      });
+      
+      setChats(updatedChats);
+    } catch (error) {
+      console.error('Error loading landlord names:', error);
+    }
+  };
+
+
+
+  const loadMessages = (chatId) => {
+    console.log('Loading messages for chat:', chatId);
+    const messagesRef = ref(db, `chats/${chatId}/messages`);
+    
+    onValue(messagesRef, (snap) => {
       const raw = snap.val() || {};
+      console.log('Raw messages data:', raw);
       const list = Object.entries(raw)
         .map(([id, msg]) => ({ id, ...msg }))
         .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       
+      console.log('Processed messages:', list);
       setMessages(list);
       scrollToBottom();
+    }, (error) => {
+      console.error('Error loading messages:', error);
+      setMessages([]);
     });
   };
 
@@ -181,7 +295,6 @@ export default function Chat() {
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Failed to send message');
     }
   };
 
@@ -196,6 +309,8 @@ export default function Chat() {
     setSelectedChat(chat);
     loadMessages(chat.id);
   };
+
+
 
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
@@ -271,24 +386,28 @@ export default function Chat() {
             flexDirection: 'column',
             background: '#f8fafc'
           }}>
-            <div style={{ 
-              padding: '1rem', 
-              borderBottom: '1px solid #e2e8f0',
-              background: 'white'
-            }}>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>Messages</h2>
-            </div>
+                         <div style={{ 
+               padding: '1rem', 
+               borderBottom: '1px solid #e2e8f0',
+               background: 'white'
+             }}>
+                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>Messages</h2>
+                </div>
+             </div>
             
             <div style={{ flex: 1, overflowY: 'auto' }}>
-              {chats.length === 0 ? (
-                <div style={{ 
-                  padding: '2rem', 
-                  textAlign: 'center', 
-                  color: '#64748b' 
-                }}>
-                  <div style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>No conversations yet</div>
-                  <div style={{ fontSize: '0.875rem' }}>Start a chat by contacting a property</div>
-                </div>
+                             {chats.length === 0 ? (
+                 <div style={{ 
+                   padding: '2rem', 
+                   textAlign: 'center', 
+                   color: '#64748b' 
+                 }}>
+                                       <div style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>No conversations yet</div>
+                    <div style={{ fontSize: '0.875rem' }}>
+                      {userType === 'tenant' ? 'Contact a property to start a chat with the landlord' : 'Start a chat by contacting a property'}
+                    </div>
+                 </div>
               ) : (
                 chats.map(chat => (
                   <div
@@ -302,17 +421,17 @@ export default function Chat() {
                       transition: 'background-color 0.2s'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <div style={{ fontWeight: '600', color: '#1e293b' }}>
-                        {userType === 'tenant' ? chat.landlordName || 'Landlord' : chat.tenantName || 'Tenant'}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        {formatTime(chat.lastMessageTime)}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>
-                      {chat.propertyName || 'Property'}
-                    </div>
+                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                       <div style={{ fontWeight: '600', color: '#1e293b' }}>
+                         {userType === 'tenant' ? (chat.landlordName || 'Landlord') : (chat.tenantName || 'Tenant')}
+                       </div>
+                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                         {formatTime(chat.lastMessageTime)}
+                       </div>
+                     </div>
+                                         <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                       {chat.propertyName || 'General Inquiry'}
+                     </div>
                     {chat.lastMessage && (
                       <div style={{ 
                         fontSize: '0.875rem', 
@@ -504,9 +623,11 @@ export default function Chat() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+                     </div>
+         </div>
+       </main>
+
+       
+     </div>
+   );
+ }

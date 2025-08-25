@@ -26,7 +26,6 @@ export default function TenantTransactions() {
         timeoutId = setTimeout(() => {
           if (!cancelled) {
             setLoading(false);
-            toast.error('Loading timeout. Please refresh the page.');
           }
         }, 2000);
 
@@ -34,11 +33,10 @@ export default function TenantTransactions() {
         if (cancelled) return;
         setCurrentUser(user);
 
-        // Load transactions for this tenant
+        // Load all transactions and filter for this tenant
         const transactionsRef = ref(db, 'transactions');
-        const tenantTransactionsQuery = query(transactionsRef, orderByChild('tenantId'));
         
-        off = onValue(tenantTransactionsQuery, (snap) => {
+        off = onValue(transactionsRef, (snap) => {
           if (cancelled) return;
           
           const raw = snap.val() || {};
@@ -53,14 +51,12 @@ export default function TenantTransactions() {
         }, (err) => {
           if (cancelled) return;
           console.error('Failed to load transactions:', err);
-          toast.error('Failed to load transactions');
           setLoading(false);
           clearTimeout(timeoutId);
         });
       } catch (error) {
         if (cancelled) return;
         console.error('Error loading transactions:', error);
-        toast.error('Error loading transactions');
         setLoading(false);
         clearTimeout(timeoutId);
       }

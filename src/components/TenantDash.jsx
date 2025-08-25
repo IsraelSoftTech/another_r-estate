@@ -38,7 +38,6 @@ const TenantDash = () => {
         timeoutId = setTimeout(() => {
           if (!cancelled) {
             setLoading(false);
-            toast.error('Loading timeout. Please refresh the page.');
           }
         }, 2000);
 
@@ -46,11 +45,10 @@ const TenantDash = () => {
         if (cancelled) return;
         setCurrentUser(user);
 
-        // Load only verified properties
+        // Load all properties and filter for verified ones
         const propsRef = ref(db, 'properties');
-        const verifiedPropsQuery = query(propsRef, orderByChild('isVerified'));
         
-        off = onValue(verifiedPropsQuery, (snap) => {
+        off = onValue(propsRef, (snap) => {
           if (cancelled) return;
           
           const raw = snap.val() || {};
@@ -66,14 +64,12 @@ const TenantDash = () => {
         }, (err) => {
           if (cancelled) return;
           console.error('Failed to load properties:', err);
-          toast.error('Failed to load properties');
           setLoading(false);
           clearTimeout(timeoutId);
         });
       } catch (error) {
         if (cancelled) return;
         console.error('Error loading properties:', error);
-        toast.error('Error loading properties');
         setLoading(false);
         clearTimeout(timeoutId);
       }
@@ -104,12 +100,12 @@ const TenantDash = () => {
     e.preventDefault();
     
     if (!selectedProperty) {
-      toast.error('No property selected for inquiry');
+      
       return;
     }
 
     if (!inquiryForm.name.trim() || !inquiryForm.email.trim() || !inquiryForm.phone.trim()) {
-      toast.error('Please fill in all required fields');
+      
       return;
     }
 
@@ -177,7 +173,7 @@ const TenantDash = () => {
 
     } catch (error) {
       console.error('Error submitting inquiry:', error);
-      toast.error('Failed to submit inquiry. Please try again.');
+      
     } finally {
       setSubmittingInquiry(false);
     }
