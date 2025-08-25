@@ -18,7 +18,8 @@ function SectionContainer({ title, children, icon }) {
 }
 
 export default function AdminSettings() {
-  const [open, setOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const location = useLocation();
   const pathPart = location.pathname.split('/').pop();
   const [active, setActive] = useState(pathPart || 'general');
@@ -143,8 +144,8 @@ export default function AdminSettings() {
 
   return (
     <div className="admin-dashboard">
-      {open && <div className="sidebar-backdrop" onClick={() => setOpen(false)} />}
-      <aside className={`sidebar`}>
+      {mobileMenuOpen && <div className="sidebar-backdrop" onClick={() => setMobileMenuOpen(false)} />}
+      <aside className={`sidebar ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="logo-section">
           <img src={logo} alt="ITT Real Estate Logo" />
           <span>ITT Real Estate</span>
@@ -169,10 +170,10 @@ export default function AdminSettings() {
             <Link to="/admin/government" className={`nav-item ${isActive('/admin/government') ? 'active' : ''}`}>
               <FaLandmark /> Government
             </Link>
-            <div className={`nav-item ${isSettingsRoute ? 'active-parent' : ''}`} onClick={() => setOpen(v => !v)} style={{ cursor: 'pointer' }}>
-              <FaCog /> Settings {open ? <FaChevronUp style={{ marginLeft: 'auto' }} /> : <FaChevronDown style={{ marginLeft: 'auto' }} />}
+            <div className={`nav-item ${isSettingsRoute ? 'active-parent' : ''}`} onClick={() => setSettingsOpen(v => !v)} style={{ cursor: 'pointer' }}>
+              <FaCog /> Settings {settingsOpen ? <FaChevronUp style={{ marginLeft: 'auto' }} /> : <FaChevronDown style={{ marginLeft: 'auto' }} />}
             </div>
-            {open && (
+            {settingsOpen && (
               <div className="submenu" style={{ marginLeft: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <Link to="/admin/settings/general" className={`nav-item ${isActive('/admin/settings/general') ? 'active' : ''}`} onClick={() => setActive('general')}>General</Link>
                 <Link to="/admin/settings/packages" className={`nav-item ${isActive('/admin/settings/packages') ? 'active' : ''}`} onClick={() => setActive('packages')}>Subscription Packages</Link>
@@ -195,7 +196,7 @@ export default function AdminSettings() {
         <div className="dashboard-header">
           <h1 className="dashboard-title">Settings</h1>
           <div className="header-actions">
-            <button className="menu-toggle" onClick={() => setOpen(v => !v)} aria-label="Toggle menu">
+            <button className="menu-toggle" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Toggle menu">
               <FaBars />
             </button>
             <div className="desktop-profile">
