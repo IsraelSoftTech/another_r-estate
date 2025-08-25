@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './AdminDash.css';
-import { FaHome, FaUsers, FaBuilding, FaMoneyBillWave, FaLandmark, FaBars, FaCheckCircle } from 'react-icons/fa';
+import { FaHome, FaUsers, FaBuilding, FaMoneyBillWave, FaLandmark, FaBars, FaCheckCircle, FaRobot, FaCog } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 import LogoutButton from './LogoutButton';
 import ProfileCircle from './ProfileCircle';
@@ -95,6 +95,12 @@ export default function AdminDash() {
             </Link>
             <Link to="/admin/government" className="nav-item last-item">
               <FaLandmark /> Government
+            </Link>
+            <Link to="/admin/ai" className="nav-item">
+              <FaRobot /> AI
+            </Link>
+            <Link to="/admin/settings" className="nav-item">
+              <FaCog /> Settings
             </Link>
           </div>
           <div className="mobile-menu-footer">

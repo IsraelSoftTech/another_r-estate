@@ -69,6 +69,13 @@
   border-right: 3px solid #1e40af;
 }
 
+/* Parent active style (e.g., Settings when a submenu is active) */
+.nav-item.active-parent {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-right: 3px solid #cbd5e1;
+}
+
 .nav-item svg {
   font-size: 1.1rem;
 }

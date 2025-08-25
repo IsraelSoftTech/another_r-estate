@@ -21,6 +21,8 @@ import TenantProperties from './components/TenantProperties';
 import TenantTransactions from './components/TenantTransactions';
 import Chat from './components/Chat';
 import LandProp from './components/LandProp';
+import AdminAI from './components/AdminAI';
+import AdminSettings from './components/AdminSettings';
 
 import TenantDash from './components/TenantDash';
 import TechDash from './components/TechDash';
@@ -62,6 +64,16 @@ function App() {
         <Route path="/admin/verification" element={<AdminVerification />} />
         <Route path="/admin/transactions" element={<AdminTransac />} />
         <Route path="/admin/government" element={<AdminGov />} />
+        <Route path="/admin/ai" element={<AdminAI />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route path="/admin/settings/general" element={<AdminSettings />} />
+        <Route path="/admin/settings/packages" element={<AdminSettings />} />
+        <Route path="/admin/settings/commissions" element={<AdminSettings />} />
+        <Route path="/admin/settings/invoices" element={<AdminSettings />} />
+        <Route path="/admin/settings/roles" element={<AdminSettings />} />
+        <Route path="/admin/settings/security" element={<AdminSettings />} />
+        <Route path="/admin/settings/trust" element={<AdminSettings />} />
+        <Route path="/admin/settings/billing" element={<AdminSettings />} />
         
         {/* Council Routes */}
         <Route path="/council" element={<CouncilDash />} />
